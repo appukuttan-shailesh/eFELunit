@@ -47,9 +47,9 @@ class CellModel(sciunit.Model,
             params_data = json.load(params_file, object_pairs_hook=collections.OrderedDict)
 
         # extract v_init and celsius (if available)
+        h.v_init = None
+        h.celsius = None
         try:
-            h.v_init = None
-            h.celsius = None
             for item in params_data[model_template]["fixed"]["global"]:
                 # would have been better if info was stored inside a dict (rather than a list)
                 if "v_init" in item:
@@ -58,13 +58,14 @@ class CellModel(sciunit.Model,
                 if "celsius" in item:
                     item.remove("celsius")
                     h.celsius = float(item[0])
-        else:
-            if h.v_init == None:
-                h.v_init = -70.0
-                print("Could not find model specific info for `v_init`; using default value of {} mV".format(str(h.v_init)))
-            if h.celsius == None:
-                h.celsius = 34.0
-                print("Could not find model specific info for `celsius`; using default value of {} degrees Celsius".format(str(h.celsius))
+        except:
+            pass
+        if h.v_init == None:
+            h.v_init = -70.0
+            print("Could not find model specific info for `v_init`; using default value of {} mV".format(str(h.v_init)))
+        if h.celsius == None:
+            h.celsius = 34.0
+            print("Could not find model specific info for `celsius`; using default value of {} degrees Celsius".format(str(h.celsius))
         """
         self.id = id
         self.version = version
