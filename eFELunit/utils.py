@@ -5,7 +5,7 @@ Module for loading BluePyOpt optimized model files
 import os
 import sciunit
 from neuronunit.capabilities import ReceivesSquareCurrent, ProducesMembranePotential, Runnable
-from neuron import h, hclass
+from neuron import h
 import neo
 from quantities import ms
 
@@ -47,29 +47,30 @@ class CellModel(sciunit.Model,
             params_data = json.load(params_file, object_pairs_hook=collections.OrderedDict)
 
         # extract v_init and celsius (if available)
-        h.v_init = None
-        h.celsius = None
+        v_init = None
+        celsius = None
         try:
             for item in params_data[model_template]["fixed"]["global"]:
                 # would have been better if info was stored inside a dict (rather than a list)
                 if "v_init" in item:
                     item.remove("v_init")
-                    h.v_init = float(item[0])
+                    v_init = float(item[0])
                 if "celsius" in item:
                     item.remove("celsius")
-                    h.celsius = float(item[0])
+                    celsius = float(item[0])
         except:
             pass
-        if h.v_init == None:
+        if v_init == None:
             h.v_init = -70.0
             print("Could not find model specific info for `v_init`; using default value of {} mV".format(str(h.v_init)))
-        if h.celsius == None:
+        else:
+            h.v_init = v_init
+        if celsius == None:
             h.celsius = 34.0
-            print("Could not find model specific info for `celsius`; using default value of {} degrees Celsius".format(str(h.celsius))
-        """
-        self.id = id
-        self.version = version
-        """
+            print("Could not find model specific info for `celsius`; using default value of {} degrees Celsius".format(str(h.celsius)))
+        else:
+            h.celsius = celsius
+
         self.cell = getattr(h, model_template)(os.path.join(self.base_path, "morphology"))
         self.iclamp = h.IClamp(0.5, sec=self.cell.soma[0])
         self.vm = h.Vector()
@@ -102,6 +103,7 @@ class CellModel(sciunit.Model,
                     break
             if not os.path.exists(self.hocpath):
                 raise IOError("No appropriate .hoc file found in /checkpoints")
+        h.load_file(self.hocpath)
 
     def get_membrane_potential(self):
         """Must return a neo.AnalogSignal."""
