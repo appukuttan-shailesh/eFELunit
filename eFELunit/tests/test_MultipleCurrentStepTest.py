@@ -60,9 +60,11 @@ class MultipleCurrentStepTest(sciunit.Test):
             os.makedirs(self.test_base_dir)
         cache_filename = os.path.join(self.test_base_dir, "results.pkl")
         if use_cache and os.path.exists(cache_filename):
+            print("***** Using cache to retrieve relevant model data *****")
             io = neo.io.get_io(cache_filename)
             self.recordings = io.read_block()
         else:
+            print("Note: no cached data for this model specification!")
             self.recordings = self._run_simulations(model)
             io = neo.io.PickleIO(cache_filename)
             io.write_block(self.recordings)
