@@ -17,7 +17,7 @@ class CellModel(sciunit.Model,
                          ReceivesSquareCurrent,
                          ProducesMembranePotential,
                          Runnable):
-    def __init__(self, model_path=None, model_name=None):
+    def __init__(self, model_path=None, model_name=None, run_alerts=False):
         # `model_path` is the path to the model's directory (.zip inside this directory)
         if not os.path.isdir(model_path):
             raise IOError("Invalid model path: {}".format(model_path))
@@ -29,6 +29,7 @@ class CellModel(sciunit.Model,
         self.model_name = model_name
         self.base_path = os.path.join(model_path, self.model_name)
         self.owd = os.getcwd()     # original working directory saved to return later
+        self.run_alerts = run_alerts
 
         file_ref = zipfile.ZipFile(self.base_path+".zip", 'r')
         file_ref.extractall(model_path)
@@ -136,6 +137,6 @@ class CellModel(sciunit.Model,
         h.finitialize(h.v_init)
         while h.t < tstop:
             h.fadvance()
-            if h.t > t_alert:
-                print("Time: {} ms".format(t_alert))
+            if self.run_alerts and h.t > t_alert:
+                print("\tTime: {} ms out of {} ms".format(t_alert, tstop))
                 t_alert += 100.0
