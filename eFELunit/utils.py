@@ -8,7 +8,6 @@ from neuronunit.capabilities import ReceivesSquareCurrent, ProducesMembranePoten
 from neuron import h
 import neo
 from quantities import ms
-
 import zipfile
 import json
 import collections
@@ -18,7 +17,7 @@ class CellModel(sciunit.Model,
                          ProducesMembranePotential,
                          Runnable):
     def __init__(self, model_path=None, model_name=None, run_alerts=False):
-        # `model_path` is the path to the model's directory (.zip inside this directory)
+        # `model_path` is the path to the model's directory
         if not os.path.isdir(model_path):
             raise IOError("Invalid model path: {}".format(model_path))
 
@@ -27,13 +26,9 @@ class CellModel(sciunit.Model,
             model_name = file_name.split(".")[0]
 
         self.model_name = model_name
-        self.base_path = os.path.join(model_path, self.model_name)
+        self.base_path = model_path
         self.owd = os.getcwd()     # original working directory saved to return later
         self.run_alerts = run_alerts
-
-        file_ref = zipfile.ZipFile(self.base_path+".zip", 'r')
-        file_ref.extractall(model_path)
-        file_ref.close()
 
         self.load_mod_files()
         self.load_cell_hoc()
@@ -88,7 +83,7 @@ class CellModel(sciunit.Model,
         os.chdir(self.owd)
 
     def load_cell_hoc(self):
-        with open(os.path.join(self.base_path, "..", self.model_name+'_meta.json')) as meta_file:
+        with open(os.path.join(self.base_path, self.model_name+'_meta.json')) as meta_file:
             meta_data = json.load(meta_file, object_pairs_hook=collections.OrderedDict)
         best_cell = meta_data["best_cell"]
         self.hocpath = os.path.join(self.base_path,"checkpoints",str(best_cell))
