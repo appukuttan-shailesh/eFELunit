@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
     name='eFELunit',
-    version='0.1',
+    version='1.0',
     author='Shailesh Appukuttan, Andrew Davison',
     author_email='shailesh.appukuttan@unic.cnrs-gif.fr, andrew.davison@unic.cnrs-gif.fr',
     packages=['eFELunit',
@@ -14,7 +14,6 @@ setup(
               'eFELunit.scores',
               'eFELunit.plots'],
     url='https://github.com/appukuttan-shailesh/eFELunit',
-    download_url = 'https://github.com/appukuttan-shailesh/eFELunit/archive/0.1.tar.gz', 
     keywords = ['eFEL', 'electrophysiology', 'electrical', 'testing', 'validation framework'],
     license='MIT',
     description='A SciUnit library for data-driven testing of neuronal morphologies.',
