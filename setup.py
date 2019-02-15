@@ -5,7 +5,7 @@ except ImportError:
 
 setup(
     name='eFELunit',
-    version='1.0',
+    version='1.1',
     author='Shailesh Appukuttan, Andrew Davison',
     author_email='shailesh.appukuttan@unic.cnrs-gif.fr, andrew.davison@unic.cnrs-gif.fr',
     packages=['eFELunit',
