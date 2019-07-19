@@ -99,7 +99,7 @@ class CellModel(sciunit.Model,
                     break
             if not os.path.exists(self.hocpath):
                 raise IOError("No appropriate .hoc file found in /checkpoints")
-        h.load_file(self.hocpath)
+        h.load_file(str(self.hocpath))
 
     def get_membrane_potential(self):
         """Must return a neo.AnalogSignal."""
