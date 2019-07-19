@@ -67,7 +67,7 @@ class CellModel(sciunit.Model,
         else:
             h.celsius = celsius
 
-        self.cell = getattr(h, model_template)(os.path.join(self.base_path, "morphology"))
+        self.cell = getattr(h, model_template)(os.path.join(str(self.base_path), "morphology"))
         self.iclamp = h.IClamp(0.5, sec=self.cell.soma[0])
         self.vm = h.Vector()
         self.vm.record(self.cell.soma[0](0.5)._ref_v)
@@ -79,7 +79,7 @@ class CellModel(sciunit.Model,
         os.system("nrnivmodl mechanisms")   # do nrnivmodl in mechanisms directory
         if not os.path.isfile(os.path.join(self.base_path, libpath)):
             raise IOError("Error in compiling mod files!")
-        h.nrn_load_dll(libpath)
+        h.nrn_load_dll(str(libpath))
         os.chdir(self.owd)
 
     def load_cell_hoc(self):
