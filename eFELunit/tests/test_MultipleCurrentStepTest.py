@@ -146,7 +146,7 @@ class MultipleCurrentStepTest(sciunit.Test):
         for key, val in score.__dict__["model"].__dict__.items():
             if val.__class__.__name__ == "HocObject":
                 score.__dict__["model"].__dict__.pop(key)
-        
+
         return score
 
 
@@ -183,22 +183,23 @@ class BluePyOpt_MultipleCurrentStepTest(MultipleCurrentStepTest):
 
         # reformat the reference_features dict into the necessary form
         observations = {}
-        for step, value in reference_features[template_name].items():
-            observations[step] = {}
-            for feature_name, (mean, std) in value["soma"].items():
-                observations[step][feature_name] = {"mean": mean, "std": std}
-
-        # reformat the protocol definition into the form requested by NeuronUnit
         protocol = {}
-        for step_name, content in protocols[template_name].items():
-            stim = content["stimuli"][0]
-            stim["amplitude"] = stim["amp"]
-            protocol[step_name] = {
-                "stimuli": stim,
-                "total_duration": stim["totduration"]
-            }
-            del stim["amp"]
-            del stim["totduration"]
+        for step_name, value in reference_features[template_name].items():
+            if "soma" in value.keys():
+                observations[step_name] = {}
+                for feature_name, (mean, std) in value["soma"].items():
+                    observations[step_name][feature_name] = {"mean": mean, "std": std}
+
+                # reformat the protocol definition into the form requested by NeuronUnit                
+                content = protocols[template_name][step_name]
+                stim = content["stimuli"][0]
+                stim["amplitude"] = stim["amp"]
+                protocol[step_name] = {
+                    "stimuli": stim,
+                    "total_duration": stim["totduration"]
+                }
+                del stim["amp"]
+                del stim["totduration"]
 
         MultipleCurrentStepTest.__init__(self,
                                          observation=observations,
