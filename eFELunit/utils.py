@@ -36,7 +36,7 @@ class CellModel(sciunit.Model,
         # get model template name
         # could also do this via other JSON, but morph.json seems dedicated for template info
         with open(os.path.join(self.base_path, "config", "morph.json")) as morph_file:
-            model_template = json.load(morph_file, object_pairs_hook=collections.OrderedDict).keys()[0]
+            model_template = list(json.load(morph_file, object_pairs_hook=collections.OrderedDict).keys())[0]
 
         # access model config info
         with open(os.path.join(self.base_path, "config", "parameters.json")) as params_file:
