@@ -175,11 +175,11 @@ class BluePyOpt_MultipleCurrentStepTest(MultipleCurrentStepTest):
         with open(os.path.join(observation_dir, "config", "protocols.json")) as fp:
             protocols = json.load(fp)
             assert len(protocols) == 1
-            template_name = protocols.keys()[0]
+            template_name = list(protocols.keys())[0]
 
         with open(os.path.join(observation_dir, "config", "features.json")) as fp:
             reference_features = json.load(fp)
-        assert reference_features.keys()[0] == template_name
+        assert list(reference_features.keys())[0] == template_name
 
         # reformat the reference_features dict into the necessary form
         observations = {}
