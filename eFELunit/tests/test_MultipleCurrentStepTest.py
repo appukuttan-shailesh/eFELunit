@@ -143,7 +143,7 @@ class MultipleCurrentStepTest(sciunit.Test):
         if hasattr(self, "figure_path"):
             score.related_data["figures"] = self.figures
 
-        for key, val in score.__dict__["model"].__dict__.items():
+        for key, val in list(score.__dict__["model"].__dict__.items()):
             if val.__class__.__name__ == "HocObject":
                 score.__dict__["model"].__dict__.pop(key)
 
