@@ -18,7 +18,7 @@ setup(
     license='MIT',
     description='A SciUnit library for data-driven testing of neuronal morphologies.',
     long_description="",
-    install_requires=['neo','elephant','sciunit>=0.1.5.2',],
+    install_requires=['neo','sciunit>=0.1.5.2',],
     dependency_links = ['git+http://github.com/neuralensemble/python-neo.git#egg=neo-0.4.0dev',
                         'https://github.com/scidash/sciunit/tarball/dev']
 )
