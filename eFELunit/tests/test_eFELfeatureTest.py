@@ -58,18 +58,20 @@ except:
     copyreg.pickle(MethodType, _pickle_method, _unpickle_method)
 
 
-class eFELfeature(Test):
+class eFELfeatureTest(Test):
     """
-    Evaluates the AP frequency over a range of injected current stimuli.
+    Evaluates the specified feature over a range of injected current stimuli.
 
     Parameters
     ----------
-    observation : dict
-        JSON file containing the target experimental data
-    feature: str
-        Indicate whether to evaluate the initial, final or mean value of the AP frequency
+    observation: list
+        Specify the target data for comparison
     name: str
         Name of the test
+    feature: str
+        Specify the feature to be evaluated
+    sim_params: dict
+        Specify simulation params: stim_delay, stim_duration, tstop
     parallelize: bool
         Whether to parallelize the test evaluation; can create simulator-specific pickling issues 
     force_run : boolean
@@ -80,22 +82,54 @@ class eFELfeature(Test):
 
     def __init__(self,
                  observation = [],
+                 name=None,
                  feature = None,
-                 name="FI test" ,
+                 sim_params={"stim_delay": 0, "stim_duration": 1000, "tstop": 1000},
                  parallelize=False,
                  force_run=False,
                  base_directory=None):
         
-        if not feature:
-            raise Exception("feature must be specified! Valid values: 'initial_f', 'final_f' or 'mean_f'")
+        self.feature_map = {
+            "initial_fi": {"efel_feature": "inv_first_ISI", "units": "Hz", "title": "Initial frequency", "ylabel": "Frequency"},
+            "final_fi": {"efel_feature": "inv_last_ISI", "units": "Hz", "title": "Final frequency", "ylabel": "Frequency"},
+            "mean_fi": {"efel_feature": "mean_frequency", "units": "Hz", "title": "Mean frequency", "ylabel": "Frequency"},
+            "spikecount": {"efel_feature": "Spikecount_stimint", "units": "", "title": "Spike count"},
+            "time_to_first_spike": {"efel_feature": "time_to_first_spike", "units": "ms", "title": "Time to first spike", "ylabel": "Time"},
+            "time_to_second_spike": {"efel_feature": "time_to_second_spike", "units": "ms", "title": "Time to second spike", "ylabel": "Time"},
+            "time_to_last_spike": {"efel_feature": "time_to_last_spike", "units": "ms", "title": "Time to last spike", "ylabel": "Time"},
+            "AP1_amp": {"efel_feature": "AP1_amp", "units": "mV", "title": "Amplitude of first spike", "ylabel": "Amplitude"},
+            "AP2_amp": {"efel_feature": "AP2_amp", "units": "mV", "title": "Amplitude of second spike", "ylabel": "Amplitude"},
+            "APlast_amp": {"efel_feature": "APlast_amp", "units": "mV", "title": "Amplitude of last spike", "ylabel": "Amplitude"},
+            "AP1_width": {"efel_feature": "AP1_width", "units": "ms", "title": "Half-width of first spike", "ylabel": "Half-width"},
+            "AP2_width": {"efel_feature": "AP2_width", "units": "ms", "title": "Half-width of second spike", "ylabel": "Half-width"},
+            "APlast_width": {"efel_feature": "APlast_width", "units": "ms", "title": "Half-width of last spike", "ylabel": "Half-width"},
+            "iv_curve": {"efel_feature": "voltage_deflection_vb_ssse", "units": "mV", "title": "I-V relationship", "ylabel": "Peak amplitude"},
+        }
+
+        if feature not in self.feature_map.keys():
+            raise Exception("feature must be specified! Valid values: {}".format(self.feature_map.keys()))
         self.feature = feature
+        self.efel_feature = self.feature_map[feature]["efel_feature"]
+        self.units = self.feature_map[feature]["units"]
+        self.title = self.feature_map[feature]["title"]
+        self.ylabel = self.feature_map[feature]["ylabel"]
+
+        # set simulation parameters
+        self.stim_delay = sim_params["stim_delay"]
+        self.stim_duration = sim_params["stim_duration"]
+        self.tstop = sim_params["tstop"]
+        
+        observation = self.format_data(observation, feature)
+        if name:
+            self.name = name
+        else:
+           self.name = "Test for {}".format(self.feature)
+        Test.__init__(self,observation,name)
 
         if not base_directory:
-            base_directory = os.path.join(".", "Results", name.replace(" ", "_"), feature)
-        self.base_directory = base_directory
+            base_directory = os.path.join(".", "Results_new", self.name.replace(" ", "_"), feature)
+        self.base_directory = base_directory        
 
-        observation = self.format_data(observation, feature)
-        Test.__init__(self,observation,name)
 
         self.required_capabilities += (cap.SomaInjectsCurrentProducesMembranePotential,)
 
@@ -111,9 +145,9 @@ class eFELfeature(Test):
         self.logFile = None
         self.test_log_filename = 'test_log.txt'
 
-        self.description = "Evaluates the AP frequency over a range of injected current stimuli."
+        self.description = "Evaluates {} over a range of injected current stimuli".format(self.feature)
 
-    score_type = scores.RMS_APfreq
+    score_type = scores.RMS
 
     def format_data(self, observation, feature):
         
@@ -128,14 +162,7 @@ class eFELfeature(Test):
                     units = " ".join(quantity_parts[1:])
                     observation[idx][key] = Quantity(number, units)
 
-        # remove unnecessary data: keep value based on specified feature
-        req_observation = []
-        for idx, entry in enumerate(observation):
-            req_observation.append({
-                "i_inj": entry["i_inj"],
-                "value": entry[feature]
-            })
-        return req_observation
+        return observation
 
     def validate_observation(self, observation):
 
@@ -147,12 +174,12 @@ class eFELfeature(Test):
                 for key in entry.keys():
                     assert type(entry[key]) is Quantity
         except Exception as e:
-            raise ObservationError(("Observation must be of the form "
-                                    "[{'i_inj':float*pA, 'value':float*Hz}, ...]"))
+            raise ObservationError(("Observation must be of the form: [{'i_inj':float*pA, 'value':float{}}, ...]"
+                                    .format("*"+self.units if self.units else "")))
 
     def cclamp(self, model, feature, amp, delay, dur, tstop):
         if self.base_directory:
-            self.path_temp_data = os.path.join(self.base_directory, "temp_data", "FI_test", model.name)
+            self.path_temp_data = os.path.join(self.base_directory, "temp_data", self.name, model.name)
 
         try:
             if not os.path.exists(self.path_temp_data):
@@ -193,7 +220,7 @@ class eFELfeature(Test):
 
         if self.parallelize:
             pool = multiprocessing.Pool(1, maxtasksperchild=1)
-            cclamp_ = functools.partial(self.cclamp, model, feature = self.feature, delay = self.delay, dur = self.dur, tstop = self.tstop)
+            cclamp_ = functools.partial(self.cclamp, model = model, feature = self.efel_feature, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop)
             results = pool.map(cclamp_, amps, chunksize=1)
             pool.terminate()
             pool.join()
@@ -202,19 +229,14 @@ class eFELfeature(Test):
             results = []
             for amp in amps:
                 print("I = {}".format(amp))
-                results.append(self.cclamp(model, amp, feature = self.feature, delay = self.delay, dur = self.dur, tstop = self.tstop))
+                results.append(self.cclamp(model = model, feature = self.efel_feature, amp = amp, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop))
 
         # Generate prediction
         prediction = []
         for entry in results:
-            if self.feature == "initial_f":
-                value = entry[1][0]['inv_first_ISI'][0] * Hz
-            elif self.feature == "final_f":
-                value = entry[1][0]['inv_last_ISI'][0] * Hz
-            else: # mean_f 
-                value = entry[1][0]['mean_frequency'][0] * Hz
+            value = Quantity(entry[1][0][self.efel_feature][0], self.units)
             prediction.append({"i_inj": entry[0]['stim_amp'][0], "value": value})
-        sorted(prediction, key=lambda d: d['i_inj']) 
+        sorted(prediction, key=lambda d: d['i_inj'])
 
         plt.close('all') #needed to avoid overlapping of saved images when the test is run on multiple models in a for loop
 
@@ -251,13 +273,13 @@ class eFELfeature(Test):
         #       - response_stim_X.pdf (see generate_prediction(); multiple Vm vs t plots; one per stimulus level 'X') 
 
         # Evaluate the score
-        score, compare_data = scores.RMS_APfreq.compute(observation, prediction)
+        score, compare_data = scores.RMS.compute(observation, prediction)
 
-        # Generate current_amps_spikecounts.json
+        # Generate compare_obs_pred.json
         file_name_sc = os.path.join(self.base_directory, 'compare_obs_pred.json')
         json.dump(compare_data, open(file_name_sc, "w"), default=str, indent=4)
 
-        # Generate ap_freq_summary.json
+        # Generate test_summary.json
         summary = {
             "observation": observation,
             "prediction": prediction,
@@ -266,7 +288,7 @@ class eFELfeature(Test):
         file_name_summary = os.path.join(self.base_directory, 'test_summary.json')
         json.dump(summary, open(file_name_summary, "w"), default=str, indent=4)
 
-        # Generate ap_freq_fI_plot.pdf
+        # Generate result_plot.pdf
         amps = [ float(x["i_inj"]) for x in compare_data ]
         obs = [ float(x["obs"]) for x in compare_data ]
         pred = [ float(x["pred"]) for x in compare_data ]
@@ -275,10 +297,10 @@ class eFELfeature(Test):
         fig = plt.gcf()
         plt.plot(amps, obs, 'o-r')
         plt.plot(amps, pred, 'x-b')
-        plt.title("f-I relationship")
+        plt.title(self.title)
         plt.legend(['Data', 'Model'], loc='best')
         plt.xlabel("$I_{applied} (pA)$")
-        plt.ylabel("AP frequency (Hz)")
+        plt.ylabel(self.ylabel + " (" + self.units + ")")
         fig_name = os.path.join(self.base_directory, "result_plot.pdf")
         plt.savefig(fig_name, dpi=600, bbox_inches='tight')
         self.figures.append(fig_name)
@@ -290,7 +312,7 @@ class eFELfeature(Test):
 
         return score
 
-    def bind_score(self, score):
+    def bind_score(self, score, model, observation, prediction):
 
         self.figures.append(self.base_directory + 'compare_obs_pred.json')
         self.figures.append(self.base_directory + 'test_summary.json')
