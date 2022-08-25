@@ -58,49 +58,53 @@ except:
     copyreg.pickle(MethodType, _pickle_method, _unpickle_method)
 
 
-class APFrequencyTest(Test):
+class Ferg2014_APFrequencyTest(Test):
     """
     Evaluates the AP frequency over a range of injected current stimuli.
 
     Parameters
     ----------
-    observation : dict
-        JSON file containing the target experimental data
-    mode: str
-        Indicate whether to evaluate the initial, final or mean value of the AP frequency
+    observation: list
+        Specify the target data for comparison
     name: str
         Name of the test
+    feature: str
+        Indicate whether to evaluate the initial, final or mean value of the AP frequency
     parallelize: bool
         Whether to parallelize the test evaluation; can create simulator-specific pickling issues 
     force_run : boolean
         If True and the pickle files containing the model's response to the simulation exists, the simulation won't be run again, traces are loaded from the pickle file
     base_directory : str
         Results will be saved here
+    show_plot : bool
+        If True, plots will be displayed on screen. Default is False.
     """
 
     def __init__(self,
                  observation = [],
-                 mode = None,
                  name="FI test" ,
+                 feature = None,
                  parallelize=False,
                  force_run=False,
-                 base_directory=None):
+                 base_directory=None,
+                 show_plot=False):
         
-        if not mode:
-            raise Exception("Mode must be specified! Valid values: 'initial_f', 'final_f' or 'mean_f'")
-        self.mode = mode
+        if not feature or feature not in ["initial_fi", "final_fi", "mean_fi"]:
+            raise Exception("Feature must be specified! Valid values: 'initial_fi', 'final_fi' or 'mean_fi'")
+        self.feature = feature
 
         if not base_directory:
-            base_directory = os.path.join(".", "Results", name.replace(" ", "_"), mode)
+            base_directory = os.path.join(".", "Results", name.replace(" ", "_"), "Test_for_" + feature)
         self.base_directory = base_directory
 
-        observation = self.format_data(observation, mode)
-        Test.__init__(self,observation,name)
+        observation = self.format_data(observation)
+        Test.__init__(self,observation, name)
 
         self.required_capabilities += (cap.SomaInjectsCurrentProducesMembranePotential,)
 
         self.parallelize = parallelize
         self.force_run = force_run
+        self.show_plot = show_plot
 
         self.path_temp_data = None # specified later, because model name is needed
 
@@ -111,11 +115,11 @@ class APFrequencyTest(Test):
         self.logFile = None
         self.test_log_filename = 'test_log.txt'
 
-        self.description = "Evaluates the AP frequency over a range of injected current stimuli."
+        self.description = "Evaluates {} over a range of injected current stimuli".format(self.feature)
 
-    score_type = scores.RMS_APfreq
+    score_type = scores.RMS
 
-    def format_data(self, observation, mode):
+    def format_data(self, observation):
         
         # ensure values are Quantity objects
         for idx, entry in enumerate(observation):
@@ -128,14 +132,7 @@ class APFrequencyTest(Test):
                     units = " ".join(quantity_parts[1:])
                     observation[idx][key] = Quantity(number, units)
 
-        # remove unnecessary data: keep value based on specified mode
-        req_observation = []
-        for idx, entry in enumerate(observation):
-            req_observation.append({
-                "i_inj": entry["i_inj"],
-                "value": entry[mode]
-            })
-        return req_observation
+        return observation
 
     def validate_observation(self, observation):
 
@@ -152,7 +149,7 @@ class APFrequencyTest(Test):
 
     def cclamp(self, model, amp, delay, dur, tstop):
         if self.base_directory:
-            self.path_temp_data = os.path.join(self.base_directory, "temp_data", "FI_test", model.name)
+            self.path_temp_data = os.path.join(self.base_directory, "temp_data", self.name, model.name)
 
         try:
             if not os.path.exists(self.path_temp_data):
@@ -208,11 +205,14 @@ class APFrequencyTest(Test):
         # value is directly in Hz since stimulus and evaluation is for 1000 ms (1s)
         prediction = []
         for entry in results:
-            if self.mode == "initial_f":
+            if entry[1][0]['Spikecount_stimint'][0] == 1:
+                # as per Ferguson et al. 2014 method
+                value = 1 * Hz
+            elif self.feature == "initial_fi":
                 value = entry[1][0]['inv_first_ISI'][0] * Hz
-            elif self.mode == "final_f":
+            elif self.feature == "final_fi":
                 value = entry[1][0]['inv_last_ISI'][0] * Hz
-            else: # mean_f 
+            else: # mean_fi
                 # Spikecount_stimint is the number of spikes, not the number of spikes per second
                 # Accurate as frequency when stim period is exactly 1 second
                 # we use efel -> Spikecount_stimint, NOT Spikecount
@@ -224,7 +224,7 @@ class APFrequencyTest(Test):
 
         efel.reset()
 
-        # Generate ap_freq_stim_X.pdf figures
+        # Generate response_stim_X.pdf figures
         plt.figure()
         for entry in results:
             plt.plot(entry[0]['T'], entry[0]['V'])
@@ -232,7 +232,7 @@ class APFrequencyTest(Test):
             plt.xlabel("Time (ms)")
             plt.ylabel("Membrane potential (mV)")
             #plt.tick_params(labelsize=18)
-            fig_name = "ap_freq_stim_" + str(entry[0]['stim_amp'][0]).replace(" ", "") + '.pdf'
+            fig_name = "response_stim_" + str(entry[0]['stim_amp'][0]).replace(" ", "") + '.pdf'
             plt.savefig(os.path.join(self.base_directory, fig_name), dpi=600, bbox_inches='tight')
             self.figures.append(self.base_directory + fig_name)
             plt.close('all') 
@@ -246,31 +246,31 @@ class APFrequencyTest(Test):
 
         # Following result related files will be generated by this test:
         #   JSON
-        #       - current_amps_spikecounts.json (for each simulated i_inj freq, exp mean, std, score)
-        #       - ap_freq_summary.json  (observation, prediction, final score)
+        #       - compare_obs_pred.json (for each simulated i_inj: obs, pred)
+        #       - test_summary.json  (observation, prediction, final score)
         #   Logs
         #       - test_log.txt
         #   Figures
-        #       - ap_freq_fI_plot.pdf  (f-I relationship plot; model vs exp Z-score for each level of i_inj)
-        #       - ap_freq_stim_X.pdf (see generate_prediction(); multiple Vm vs t plots; one per stimulus level 'X') 
+        #       - result_plot.pdf  (parameter vs i_inj relationship plot; model vs target data for each level of i_inj)
+        #       - response_stim_X.pdf (see generate_prediction(); multiple Vm vs t plots; one per stimulus level 'X') 
 
         # Evaluate the score
-        score, compare_data = scores.RMS_APfreq.compute(observation, prediction)
+        score, compare_data = scores.RMS.compute(observation, prediction)
 
-        # Generate current_amps_spikecounts.json
+        # Generate compare_obs_pred.json
         file_name_sc = os.path.join(self.base_directory, 'compare_obs_pred.json')
         json.dump(compare_data, open(file_name_sc, "w"), default=str, indent=4)
 
-        # Generate ap_freq_summary.json
+        # Generate test_summary.json
         summary = {
             "observation": observation,
             "prediction": prediction,
             "score": score
         }
-        file_name_summary = os.path.join(self.base_directory, 'ap_freq_summary.json')
+        file_name_summary = os.path.join(self.base_directory, 'test_summary.json')
         json.dump(summary, open(file_name_summary, "w"), default=str, indent=4)
 
-        # Generate ap_freq_fI_plot.pdf
+        # Generate result_plot.pdf
         amps = [ float(x["i_inj"]) for x in compare_data ]
         obs = [ float(x["obs"]) for x in compare_data ]
         pred = [ float(x["pred"]) for x in compare_data ]
@@ -283,10 +283,11 @@ class APFrequencyTest(Test):
         plt.legend(['Data', 'Model'], loc='best')
         plt.xlabel("$I_{applied} (pA)$")
         plt.ylabel("AP frequency (Hz)")
-        fig_name = os.path.join(self.base_directory, "ap_freq_fI_plot.pdf")
+        fig_name = os.path.join(self.base_directory, "result_plot.pdf")
         plt.savefig(fig_name, dpi=600, bbox_inches='tight')
         self.figures.append(fig_name)
-        plt.show()
+        if self.show_plot:
+            plt.show()
 
         self.logFile.write("Overall score: " + str(score) + "\n")
         self.logFile.write("---------------------------------------------------------------------------------------------------\n")
@@ -296,8 +297,8 @@ class APFrequencyTest(Test):
 
     def bind_score(self, score, model, observation, prediction):
 
-        self.figures.append(self.base_directory + 'current_amps_spikecounts.json')
-        self.figures.append(self.base_directory + 'ap_freq_summary.json')
+        self.figures.append(self.base_directory + 'compare_obs_pred.json')
+        self.figures.append(self.base_directory + 'test_summary.json')
         self.figures.append(self.base_directory + self.test_log_filename)
         score.related_data["figures"] = self.figures
         return score

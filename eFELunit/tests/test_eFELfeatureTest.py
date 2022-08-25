@@ -78,6 +78,8 @@ class eFELfeatureTest(Test):
         If True and the pickle files containing the model's response to the simulation exists, the simulation won't be run again, traces are loaded from the pickle file
     base_directory : str
         Results will be saved here
+    show_plot : bool
+        If True, plots will be displayed on screen. Default is False.
     """
 
     def __init__(self,
@@ -87,7 +89,8 @@ class eFELfeatureTest(Test):
                  sim_params={"stim_delay": 0, "stim_duration": 1000, "tstop": 1000},
                  parallelize=False,
                  force_run=False,
-                 base_directory=None):
+                 base_directory=None,
+                 show_plot=False):
         
         self.feature_map = {
             "initial_fi": {"efel_feature": "inv_first_ISI", "units": "Hz", "title": "Initial frequency", "ylabel": "Frequency"},
@@ -124,17 +127,17 @@ class eFELfeatureTest(Test):
             self.name = name
         else:
            self.name = "Test for {}".format(self.feature)
-        Test.__init__(self,observation,name)
+        Test.__init__(self, observation, self.name)
 
         if not base_directory:
-            base_directory = os.path.join(".", "Results_new", self.name.replace(" ", "_"), feature)
+            base_directory = os.path.join(".", "Results", "eFELfeatureTest", self.name.replace(" ", "_"))
         self.base_directory = base_directory        
-
 
         self.required_capabilities += (cap.SomaInjectsCurrentProducesMembranePotential,)
 
         self.parallelize = parallelize
         self.force_run = force_run
+        self.show_plot = show_plot
 
         self.path_temp_data = None # specified later, because model name is needed
 
@@ -304,7 +307,8 @@ class eFELfeatureTest(Test):
         fig_name = os.path.join(self.base_directory, "result_plot.pdf")
         plt.savefig(fig_name, dpi=600, bbox_inches='tight')
         self.figures.append(fig_name)
-        plt.show()
+        if self.show_plot:
+            plt.show()
 
         self.logFile.write("Overall score: " + str(score) + "\n")
         self.logFile.write("---------------------------------------------------------------------------------------------------\n")
