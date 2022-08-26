@@ -18,8 +18,8 @@ class RMS(Score):
 
             compare_data.append({
                 "i_inj": obs["i_inj"],
-                "obs": obs["value"],
-                "pred": pred["value"],
+                "obs": obs["value"] if "dimensionless" not in str(obs["value"]) else obs["value"].magnitude,
+                "pred": pred["value"] if "dimensionless" not in str(pred["value"]) else pred["value"].magnitude
             })
         RMS_score = pow((sum_scores/len(observation)), 1/2)
         return RMS(RMS_score), compare_data

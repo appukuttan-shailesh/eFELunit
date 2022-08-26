@@ -18,6 +18,7 @@ import json
 # import multiprocessing
 import pathos.multiprocessing as multiprocessing
 import functools
+import time
 
 try:
     import pickle as pickle
@@ -96,7 +97,7 @@ class eFELfeatureTest(Test):
             "initial_fi": {"efel_feature": "inv_first_ISI", "units": "Hz", "title": "Initial frequency", "ylabel": "Frequency"},
             "final_fi": {"efel_feature": "inv_last_ISI", "units": "Hz", "title": "Final frequency", "ylabel": "Frequency"},
             "mean_fi": {"efel_feature": "mean_frequency", "units": "Hz", "title": "Mean frequency", "ylabel": "Frequency"},
-            "spikecount": {"efel_feature": "Spikecount_stimint", "units": "", "title": "Spike count"},
+            "spikecount": {"efel_feature": "Spikecount_stimint", "units": "", "title": "Spike count", "ylabel": "Spike count"},
             "time_to_first_spike": {"efel_feature": "time_to_first_spike", "units": "ms", "title": "Time to first spike", "ylabel": "Time"},
             "time_to_second_spike": {"efel_feature": "time_to_second_spike", "units": "ms", "title": "Time to second spike", "ylabel": "Time"},
             "time_to_last_spike": {"efel_feature": "time_to_last_spike", "units": "ms", "title": "Time to last spike", "ylabel": "Time"},
@@ -221,6 +222,9 @@ class eFELfeatureTest(Test):
         # stimulus levels (current injection) extracted from observation
         amps = [x["i_inj"] for x in self.observation]
 
+        # get the start time
+        start_time = time.time()
+
         if self.parallelize:
             pool = multiprocessing.Pool(1, maxtasksperchild=1)
             cclamp_ = functools.partial(self.cclamp, model = model, feature = self.efel_feature, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop)
@@ -233,6 +237,12 @@ class eFELfeatureTest(Test):
             for amp in amps:
                 print("I = {}".format(amp))
                 results.append(self.cclamp(model = model, feature = self.efel_feature, amp = amp, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop))
+
+        # get the end time
+        end_time = time.time()
+
+        # model execution time
+        elapsed_time = end_time - start_time
 
         # Generate prediction
         prediction = []
@@ -284,8 +294,8 @@ class eFELfeatureTest(Test):
 
         # Generate test_summary.json
         summary = {
-            "observation": observation,
-            "prediction": prediction,
+            "observation": observation if "dimensionless" not in str(observation) else observation.magnitude,
+            "prediction": prediction if "dimensionless" not in str(prediction) else prediction.magnitude,
             "score": score
         }
         file_name_summary = os.path.join(self.base_directory, 'test_summary.json')
@@ -295,7 +305,7 @@ class eFELfeatureTest(Test):
         amps = [ float(x["i_inj"]) for x in compare_data ]
         obs = [ float(x["obs"]) for x in compare_data ]
         pred = [ float(x["pred"]) for x in compare_data ]
-        
+
         plt.figure()
         fig = plt.gcf()
         plt.plot(amps, obs, 'o-r')
@@ -303,7 +313,8 @@ class eFELfeatureTest(Test):
         plt.title(self.title)
         plt.legend(['Data', 'Model'], loc='best')
         plt.xlabel("$I_{applied} (pA)$")
-        plt.ylabel(self.ylabel + " (" + self.units + ")")
+        ylabel = self.ylabel + " (" + self.units + ")" if self.units else self.ylabel
+        plt.ylabel()
         fig_name = os.path.join(self.base_directory, "result_plot.pdf")
         plt.savefig(fig_name, dpi=600, bbox_inches='tight')
         self.figures.append(fig_name)
