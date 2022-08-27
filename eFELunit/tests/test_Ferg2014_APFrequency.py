@@ -107,13 +107,11 @@ class Ferg2014_APFrequencyTest(Test):
         self.show_plot = show_plot
 
         self.path_temp_data = None # specified later, because model name is needed
+        self.logFile = None # specified later, because model name is needed
 
         self.figures = []
 
         self.npool = multiprocessing.cpu_count() - 1
-
-        self.logFile = None
-        self.test_log_filename = 'test_log.txt'
 
         self.description = "Evaluates {} over a range of injected current stimuli".format(self.feature)
 
@@ -149,7 +147,7 @@ class Ferg2014_APFrequencyTest(Test):
 
     def cclamp(self, model, amp, delay, dur, tstop):
         if self.base_directory:
-            self.path_temp_data = os.path.join(self.base_directory, "temp_data", self.name, model.name)
+            self.path_temp_data = os.path.join(self.base_directory, "temp_data")
 
         try:
             if not os.path.exists(self.path_temp_data):
@@ -159,7 +157,7 @@ class Ferg2014_APFrequencyTest(Test):
                 raise
             pass
 
-        file_name = self.path_temp_data + 'cclamp_' + str(amp) + '.p'
+        file_name = os.path.join(self.path_temp_data, 'cclamp_' + str(amp) + '.p')
 
         if self.force_run or (os.path.isfile(file_name) is False):
             traces=[]
@@ -182,6 +180,7 @@ class Ferg2014_APFrequencyTest(Test):
 
         # update self.base_directory with model name
         self.base_directory = os.path.join(self.base_directory, model.name.replace(" ", "_"))
+        self.logFile = os.path.join(self.base_directory, "test_log.txt")
 
         efel.reset()
 
@@ -237,8 +236,6 @@ class Ferg2014_APFrequencyTest(Test):
             self.figures.append(self.base_directory + fig_name)
             plt.close('all') 
 
-        self.logFile = open(os.path.join(self.base_directory, self.test_log_filename), 'w')
-
         return prediction
 
     def compute_score(self, observation, prediction, verbose=False):
@@ -289,9 +286,9 @@ class Ferg2014_APFrequencyTest(Test):
         if self.show_plot:
             plt.show()
 
-        self.logFile.write("Overall score: " + str(score) + "\n")
-        self.logFile.write("---------------------------------------------------------------------------------------------------\n")
-        self.logFile.close()
+        with open(self.logFile, "w") as outfile:
+            outfile.write("Overall score: " + str(score) + "\n")
+            outfile.write("------------------------------------------------------------\n")
 
         return score
 
@@ -299,6 +296,6 @@ class Ferg2014_APFrequencyTest(Test):
 
         self.figures.append(self.base_directory + 'compare_obs_pred.json')
         self.figures.append(self.base_directory + 'test_summary.json')
-        self.figures.append(self.base_directory + self.test_log_filename)
+        self.figures.append(self.logFile)
         score.related_data["figures"] = self.figures
         return score

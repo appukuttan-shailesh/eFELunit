@@ -33,9 +33,6 @@ except:
 
 from types import MethodType
 
-from quantities import mV, nA, ms, V, s, Hz
-
-
 def _pickle_method(method):
     func_name = method.__func__.__name__
     obj = method.__self__
@@ -132,7 +129,7 @@ class eFELfeatureTest(Test):
 
         if not base_directory:
             base_directory = os.path.join(".", "Results", "eFELfeatureTest", self.name.replace(" ", "_"))
-        self.base_directory = base_directory        
+        self.base_directory = base_directory # updated with model name in generate_prediction()     
 
         self.required_capabilities += (cap.SomaInjectsCurrentProducesMembranePotential,)
 
@@ -141,13 +138,11 @@ class eFELfeatureTest(Test):
         self.show_plot = show_plot
 
         self.path_temp_data = None # specified later, because model name is needed
+        self.logFile = None # specified later, because model name is needed
 
         self.figures = []
 
         self.npool = multiprocessing.cpu_count() - 1
-
-        self.logFile = None
-        self.test_log_filename = 'test_log.txt'
 
         self.description = "Evaluates {} over a range of injected current stimuli".format(self.feature)
 
@@ -183,7 +178,7 @@ class eFELfeatureTest(Test):
 
     def cclamp(self, model, feature, amp, delay, dur, tstop):
         if self.base_directory:
-            self.path_temp_data = os.path.join(self.base_directory, "temp_data", self.name, model.name)
+            self.path_temp_data = os.path.join(self.base_directory, "temp_data")
 
         try:
             if not os.path.exists(self.path_temp_data):
@@ -193,7 +188,7 @@ class eFELfeatureTest(Test):
                 raise
             pass
 
-        file_name = self.path_temp_data + 'cclamp_' + str(amp) + '.p'
+        file_name = os.path.join(self.path_temp_data, 'cclamp_' + str(amp) + '.p')
 
         if self.force_run or (os.path.isfile(file_name) is False):
             traces=[]
@@ -216,6 +211,7 @@ class eFELfeatureTest(Test):
 
         # update self.base_directory with model name
         self.base_directory = os.path.join(self.base_directory, model.name.replace(" ", "_"))
+        self.logFile = os.path.join(self.base_directory, "test_log.txt")
 
         efel.reset()
 
@@ -223,7 +219,7 @@ class eFELfeatureTest(Test):
         amps = [x["i_inj"] for x in self.observation]
 
         # get the start time
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         if self.parallelize:
             pool = multiprocessing.Pool(1, maxtasksperchild=1)
@@ -239,10 +235,10 @@ class eFELfeatureTest(Test):
                 results.append(self.cclamp(model = model, feature = self.efel_feature, amp = amp, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop))
 
         # get the end time
-        end_time = time.time()
+        end_time = time.perf_counter()
 
         # model execution time
-        elapsed_time = end_time - start_time
+        self.elapsed_time = end_time - start_time
 
         # Generate prediction
         prediction = []
@@ -268,8 +264,6 @@ class eFELfeatureTest(Test):
             self.figures.append(self.base_directory + fig_name)
             plt.close('all') 
 
-        self.logFile = open(os.path.join(self.base_directory, self.test_log_filename), 'w')
-
         return prediction
 
     def compute_score(self, observation, prediction, verbose=False):
@@ -294,9 +288,10 @@ class eFELfeatureTest(Test):
 
         # Generate test_summary.json
         summary = {
-            "observation": observation if "dimensionless" not in str(observation) else observation.magnitude,
-            "prediction": prediction if "dimensionless" not in str(prediction) else prediction.magnitude,
-            "score": score
+            "observation": observation,
+            "prediction": prediction,
+            "score": score,
+            "model_execution_time": "%0.2f s"%self.elapsed_time,
         }
         file_name_summary = os.path.join(self.base_directory, 'test_summary.json')
         json.dump(summary, open(file_name_summary, "w"), default=str, indent=4)
@@ -314,16 +309,17 @@ class eFELfeatureTest(Test):
         plt.legend(['Data', 'Model'], loc='best')
         plt.xlabel("$I_{applied} (pA)$")
         ylabel = self.ylabel + " (" + self.units + ")" if self.units else self.ylabel
-        plt.ylabel()
+        plt.ylabel(ylabel)
         fig_name = os.path.join(self.base_directory, "result_plot.pdf")
         plt.savefig(fig_name, dpi=600, bbox_inches='tight')
         self.figures.append(fig_name)
         if self.show_plot:
             plt.show()
 
-        self.logFile.write("Overall score: " + str(score) + "\n")
-        self.logFile.write("---------------------------------------------------------------------------------------------------\n")
-        self.logFile.close()
+        with open(self.logFile, "w") as outfile:
+            outfile.write("Overall score: " + str(score) + "\n")
+            outfile.write("Model execution time: %0.2f s\n"% self.elapsed_time)
+            outfile.write("------------------------------------------------------------\n")
 
         return score
 
@@ -331,6 +327,6 @@ class eFELfeatureTest(Test):
 
         self.figures.append(self.base_directory + 'compare_obs_pred.json')
         self.figures.append(self.base_directory + 'test_summary.json')
-        self.figures.append(self.base_directory + self.test_log_filename)
+        self.figures.append(self.logFile)
         score.related_data["figures"] = self.figures
         return score
