@@ -18,7 +18,13 @@ import json
 # import multiprocessing
 import pathos.multiprocessing as multiprocessing
 import functools
-import time
+
+try:
+    #py3
+    from time import perf_counter as timer
+except:
+    #py2
+    from time import time as timer
 
 try:
     import pickle as pickle
@@ -91,20 +97,20 @@ class eFELfeatureTest(Test):
                  show_plot=False):
         
         self.feature_map = {
-            "initial_fi": {"efel_feature": "inv_first_ISI", "units": "Hz", "title": "Initial frequency", "ylabel": "Frequency"},
-            "final_fi": {"efel_feature": "inv_last_ISI", "units": "Hz", "title": "Final frequency", "ylabel": "Frequency"},
-            "mean_fi": {"efel_feature": "mean_frequency", "units": "Hz", "title": "Mean frequency", "ylabel": "Frequency"},
-            "spikecount": {"efel_feature": "Spikecount_stimint", "units": "", "title": "Spike count", "ylabel": "Spike count"},
-            "time_to_first_spike": {"efel_feature": "time_to_first_spike", "units": "ms", "title": "Time to first spike", "ylabel": "Time"},
-            "time_to_second_spike": {"efel_feature": "time_to_second_spike", "units": "ms", "title": "Time to second spike", "ylabel": "Time"},
-            "time_to_last_spike": {"efel_feature": "time_to_last_spike", "units": "ms", "title": "Time to last spike", "ylabel": "Time"},
-            "AP1_amp": {"efel_feature": "AP1_amp", "units": "mV", "title": "Amplitude of first spike", "ylabel": "Amplitude"},
-            "AP2_amp": {"efel_feature": "AP2_amp", "units": "mV", "title": "Amplitude of second spike", "ylabel": "Amplitude"},
-            "APlast_amp": {"efel_feature": "APlast_amp", "units": "mV", "title": "Amplitude of last spike", "ylabel": "Amplitude"},
-            "AP1_width": {"efel_feature": "AP1_width", "units": "ms", "title": "Half-width of first spike", "ylabel": "Half-width"},
-            "AP2_width": {"efel_feature": "AP2_width", "units": "ms", "title": "Half-width of second spike", "ylabel": "Half-width"},
-            "APlast_width": {"efel_feature": "APlast_width", "units": "ms", "title": "Half-width of last spike", "ylabel": "Half-width"},
-            "iv_curve": {"efel_feature": "voltage_deflection_vb_ssse", "units": "mV", "title": "I-V relationship", "ylabel": "Peak amplitude"},
+            "initial_fi": {"efel_feature": "inv_first_ISI", "units": "Hz", "title": "Initial frequency", "ylabel": "Frequency", "requires": None},
+            "final_fi": {"efel_feature": "inv_last_ISI", "units": "Hz", "title": "Final frequency", "ylabel": "Frequency", "requires": None},
+            "mean_fi": {"efel_feature": "mean_frequency", "units": "Hz", "title": "Mean frequency", "ylabel": "Frequency", "requires": None},
+            "spikecount": {"efel_feature": "Spikecount_stimint", "units": "", "title": "Spike count", "ylabel": "Spike count", "requires": None},
+            "time_to_first_spike": {"efel_feature": "time_to_first_spike", "units": "ms", "title": "Time to first spike", "ylabel": "Time", "requires": "Spikecount_stimint>0"},
+            "time_to_second_spike": {"efel_feature": "time_to_second_spike", "units": "ms", "title": "Time to second spike", "ylabel": "Time", "requires": "Spikecount_stimint>1"},
+            "time_to_last_spike": {"efel_feature": "time_to_last_spike", "units": "ms", "title": "Time to last spike", "ylabel": "Time", "requires": "Spikecount_stimint>0"},
+            "AP1_amp": {"efel_feature": "AP1_amp", "units": "mV", "title": "Amplitude of first spike", "ylabel": "Amplitude", "requires": "Spikecount_stimint>0"},
+            "AP2_amp": {"efel_feature": "AP2_amp", "units": "mV", "title": "Amplitude of second spike", "ylabel": "Amplitude", "requires": "Spikecount_stimint>1"},
+            "APlast_amp": {"efel_feature": "APlast_amp", "units": "mV", "title": "Amplitude of last spike", "ylabel": "Amplitude", "requires": "Spikecount_stimint>0"},
+            "AP1_width": {"efel_feature": "AP1_width", "units": "ms", "title": "Half-width of first spike", "ylabel": "Half-width", "requires": "Spikecount_stimint>0"},
+            "AP2_width": {"efel_feature": "AP2_width", "units": "ms", "title": "Half-width of second spike", "ylabel": "Half-width", "requires": "Spikecount_stimint>1"},
+            "APlast_width": {"efel_feature": "APlast_width", "units": "ms", "title": "Half-width of last spike", "ylabel": "Half-width", "requires": "Spikecount_stimint>0"},
+            "iv_curve": {"efel_feature": "voltage_deflection_vb_ssse", "units": "mV", "title": "I-V relationship", "ylabel": "Peak amplitude", "requires": None},
         }
 
         if feature not in self.feature_map.keys():
@@ -114,6 +120,7 @@ class eFELfeatureTest(Test):
         self.units = self.feature_map[feature]["units"]
         self.title = self.feature_map[feature]["title"]
         self.ylabel = self.feature_map[feature]["ylabel"]
+        self.feature_requires = self.feature_map[feature]["requires"]
 
         # set simulation parameters
         self.stim_delay = sim_params["stim_delay"]
@@ -176,7 +183,7 @@ class eFELfeatureTest(Test):
             raise ObservationError(("Observation must be of the form: [{'i_inj':float*pA, 'value':float{}}, ...]"
                                     .format("*"+self.units if self.units else "")))
 
-    def cclamp(self, model, feature, amp, delay, dur, tstop):
+    def cclamp(self, model, feature_list, amp, delay, dur, tstop):
         if self.base_directory:
             self.path_temp_data = os.path.join(self.base_directory, "temp_data")
 
@@ -199,7 +206,7 @@ class eFELfeatureTest(Test):
             }
             trace = model.runsim_stimulus_get_vm_efel_format(tstop, current)
             traces.append(trace)
-            traces_results = efel.getFeatureValues(traces, [feature])
+            traces_results = efel.getFeatureValues(traces, feature_list)
             traces.append(traces_results)
             pickle.dump(traces, gzip.GzipFile(file_name, "wb"))
         else:
@@ -218,12 +225,17 @@ class eFELfeatureTest(Test):
         # stimulus levels (current injection) extracted from observation
         amps = [x["i_inj"] for x in self.observation]
 
+        # check if requested feature has prerequisites
+        self.feature_list = [self.efel_feature]
+        if self.feature_requires:
+            self.feature_list.append(self.feature_requires.split(">")[0])
+        
         # get the start time
-        start_time = time.perf_counter()
+        start_time = timer()
 
         if self.parallelize:
             pool = multiprocessing.Pool(1, maxtasksperchild=1)
-            cclamp_ = functools.partial(self.cclamp, model = model, feature = self.efel_feature, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop)
+            cclamp_ = functools.partial(self.cclamp, model = model, feature_list = self.feature_list, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop)
             results = pool.map(cclamp_, amps, chunksize=1)
             pool.terminate()
             pool.join()
@@ -232,10 +244,10 @@ class eFELfeatureTest(Test):
             results = []
             for amp in amps:
                 print("I = {}".format(amp))
-                results.append(self.cclamp(model = model, feature = self.efel_feature, amp = amp, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop))
+                results.append(self.cclamp(model = model, feature_list = self.feature_list, amp = amp, delay = self.stim_delay, dur = self.stim_duration, tstop = self.tstop))
 
         # get the end time
-        end_time = time.perf_counter()
+        end_time = timer()
 
         # model execution time
         self.elapsed_time = end_time - start_time
@@ -243,7 +255,17 @@ class eFELfeatureTest(Test):
         # Generate prediction
         prediction = []
         for entry in results:
-            value = Quantity(entry[1][0][self.efel_feature][0], self.units)
+            if self.feature_requires:
+                req_feature_value = entry[1][0][self.feature_requires.split(">")[0]][0]
+                if req_feature_value > int(self.feature_requires.split(">")[1]):
+                    value = Quantity(round(entry[1][0][self.efel_feature][0], 2), self.units)
+                else:
+                    value = None
+            else:
+                if entry[1][0][self.efel_feature]:
+                    value = Quantity(round(entry[1][0][self.efel_feature][0], 2), self.units)
+                else:
+                    value = None
             prediction.append({"i_inj": entry[0]['stim_amp'][0], "value": value})
         sorted(prediction, key=lambda d: d['i_inj'])
 
@@ -280,18 +302,27 @@ class eFELfeatureTest(Test):
         #       - response_stim_X.pdf (see generate_prediction(); multiple Vm vs t plots; one per stimulus level 'X') 
 
         # Evaluate the score
-        score, compare_data = scores.RMS.compute(observation, prediction)
+        score, compare_data, self.total_penalty = scores.RMS.compute(observation, prediction)
 
         # Generate compare_obs_pred.json
         file_name_sc = os.path.join(self.base_directory, 'compare_obs_pred.json')
         json.dump(compare_data, open(file_name_sc, "w"), default=str, indent=4)
 
+        def remove_dimensionless_units(data_list):
+            # to remove dimensionless string for values without units
+            # print just value as string (as string for consistency with other data)
+            for ind, item in enumerate(data_list):
+                if "dimensionless" in str(item["value"]):
+                    data_list[ind]["value"] = str(item["value"].magnitude)    
+            return data_list
+
         # Generate test_summary.json
         summary = {
-            "observation": observation,
-            "prediction": prediction,
+            "observation": remove_dimensionless_units(observation),
+            "prediction": remove_dimensionless_units(prediction),
             "score": score,
-            "model_execution_time": "%0.2f s"%self.elapsed_time,
+            "total_applied_penalty": self.total_penalty,
+            "model_execution_time": "%0.2f s"%self.elapsed_time
         }
         file_name_summary = os.path.join(self.base_directory, 'test_summary.json')
         json.dump(summary, open(file_name_summary, "w"), default=str, indent=4)
@@ -299,7 +330,7 @@ class eFELfeatureTest(Test):
         # Generate result_plot.pdf
         amps = [ float(x["i_inj"]) for x in compare_data ]
         obs = [ float(x["obs"]) for x in compare_data ]
-        pred = [ float(x["pred"]) for x in compare_data ]
+        pred = [ float(x["pred"]) if x["pred"] else None for x in compare_data ]
 
         plt.figure()
         fig = plt.gcf()
@@ -319,6 +350,7 @@ class eFELfeatureTest(Test):
         with open(self.logFile, "w") as outfile:
             outfile.write("Overall score: " + str(score) + "\n")
             outfile.write("Model execution time: %0.2f s\n"% self.elapsed_time)
+            outfile.write("Total penalty: %d\n"% self.total_penalty)
             outfile.write("------------------------------------------------------------\n")
 
         return score

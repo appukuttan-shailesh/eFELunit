@@ -206,11 +206,11 @@ class Ferg2014_APFrequencyTest(Test):
         for entry in results:
             if entry[1][0]['Spikecount_stimint'][0] == 1:
                 # as per Ferguson et al. 2014 method
-                value = 1 * Hz
+                value = 1.0 * Hz
             elif self.feature == "initial_fi":
-                value = entry[1][0]['inv_first_ISI'][0] * Hz
+                value = round(entry[1][0]['inv_first_ISI'][0], 2) * Hz
             elif self.feature == "final_fi":
-                value = entry[1][0]['inv_last_ISI'][0] * Hz
+                value = round(entry[1][0]['inv_last_ISI'][0], 2) * Hz
             else: # mean_fi
                 # Spikecount_stimint is the number of spikes, not the number of spikes per second
                 # Accurate as frequency when stim period is exactly 1 second
@@ -252,7 +252,7 @@ class Ferg2014_APFrequencyTest(Test):
         #       - response_stim_X.pdf (see generate_prediction(); multiple Vm vs t plots; one per stimulus level 'X') 
 
         # Evaluate the score
-        score, compare_data = scores.RMS.compute(observation, prediction)
+        score, compare_data, self.total_penalty = scores.RMS.compute(observation, prediction)
 
         # Generate compare_obs_pred.json
         file_name_sc = os.path.join(self.base_directory, 'compare_obs_pred.json')
@@ -262,7 +262,8 @@ class Ferg2014_APFrequencyTest(Test):
         summary = {
             "observation": observation,
             "prediction": prediction,
-            "score": score
+            "score": score,
+            "total_applied_penalty": self.total_penalty
         }
         file_name_summary = os.path.join(self.base_directory, 'test_summary.json')
         json.dump(summary, open(file_name_summary, "w"), default=str, indent=4)
@@ -288,6 +289,7 @@ class Ferg2014_APFrequencyTest(Test):
 
         with open(self.logFile, "w") as outfile:
             outfile.write("Overall score: " + str(score) + "\n")
+            outfile.write("Total penalty: %d\n"% self.total_penalty)
             outfile.write("------------------------------------------------------------\n")
 
         return score
