@@ -204,7 +204,9 @@ class Ferg2014_APFrequencyTest(Test):
         # value is directly in Hz since stimulus and evaluation is for 1000 ms (1s)
         prediction = []
         for entry in results:
-            if entry[1][0]['Spikecount_stimint'][0] == 1:
+            if entry[1][0]['Spikecount_stimint'][0] == 0:
+                value = 0.0 * Hz
+            elif entry[1][0]['Spikecount_stimint'][0] == 1:
                 # as per Ferguson et al. 2014 method
                 value = 1.0 * Hz
             elif self.feature == "initial_fi":
