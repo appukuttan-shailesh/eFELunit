@@ -17,8 +17,7 @@ class RMS(Score):
         total_applied_penalty = 0
         for obs, pred in zip(observation, prediction):
             if pred["value"] != None:
-                curr_score = abs(pow(float(obs["value"]),2) - pow(float(pred["value"]),2))
-                sum_scores = sum_scores + curr_score
+                sum_scores = sum_scores + pow(float(pred["value"]) - float(obs["value"]),2)
             else:
                 total_applied_penalty = total_applied_penalty + penalty
                 sum_scores = sum_scores + penalty # penalty for no prediction
