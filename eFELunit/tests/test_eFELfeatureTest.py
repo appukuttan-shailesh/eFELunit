@@ -107,6 +107,8 @@ class eFELfeatureTest(Test):
             "AP1_amp": {"efel_feature": "AP1_amp", "units": "mV", "title": "Amplitude of first spike", "ylabel": "Amplitude", "requires": "Spikecount_stimint>0"},
             "AP2_amp": {"efel_feature": "AP2_amp", "units": "mV", "title": "Amplitude of second spike", "ylabel": "Amplitude", "requires": "Spikecount_stimint>1"},
             "APlast_amp": {"efel_feature": "APlast_amp", "units": "mV", "title": "Amplitude of last spike", "ylabel": "Amplitude", "requires": "Spikecount_stimint>0"},
+            "AP1_peak": {"efel_feature": "AP1_peak", "units": "mV", "title": "Peak of first spike", "ylabel": "Peak potential", "requires": "Spikecount_stimint>0"},
+            "AP2_peak": {"efel_feature": "AP2_peak", "units": "mV", "title": "Peak of second spike", "ylabel": "Peak potential", "requires": "Spikecount_stimint>1"},
             "AP1_width": {"efel_feature": "AP1_width", "units": "ms", "title": "Half-width of first spike", "ylabel": "Half-width", "requires": "Spikecount_stimint>0"},
             "AP2_width": {"efel_feature": "AP2_width", "units": "ms", "title": "Half-width of second spike", "ylabel": "Half-width", "requires": "Spikecount_stimint>1"},
             "APlast_width": {"efel_feature": "APlast_width", "units": "ms", "title": "Half-width of last spike", "ylabel": "Half-width", "requires": "Spikecount_stimint>0"},
