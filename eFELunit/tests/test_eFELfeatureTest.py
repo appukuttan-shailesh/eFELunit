@@ -90,7 +90,7 @@ class eFELfeatureTest(Test):
                  observation = [],
                  name=None,
                  feature = None,
-                 sim_params={"stim_delay": 0, "stim_duration": 1000, "tstop": 1000},
+                 sim_params={"stim_delay": 0, "stim_duration": 1000, "tstop": 1000, "dt": 0.01},
                  parallelize=False,
                  force_run=False,
                  base_directory=None,
@@ -128,6 +128,10 @@ class eFELfeatureTest(Test):
         self.stim_delay = sim_params["stim_delay"]
         self.stim_duration = sim_params["stim_duration"]
         self.tstop = sim_params["tstop"]
+        if "dt" in sim_params.keys():
+            self.dt = sim_params["dt"]
+        else:
+            self.dt = 0.02 # ms
         
         observation = self.format_data(observation, feature)
         if name:
@@ -223,6 +227,7 @@ class eFELfeatureTest(Test):
         self.logFile = os.path.join(self.base_directory, "test_log.txt")
 
         efel.reset()
+        efel.setDoubleSetting('interp_step', self.dt)
 
         # stimulus levels (current injection) extracted from observation
         amps = [x["i_inj"] for x in self.observation]

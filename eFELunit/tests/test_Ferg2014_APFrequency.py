@@ -183,6 +183,7 @@ class Ferg2014_APFrequencyTest(Test):
         self.logFile = os.path.join(self.base_directory, "test_log.txt")
 
         efel.reset()
+        efel.setDoubleSetting('interp_step', 0.02) # ms
 
         # stimulus levels (current injection) extracted from observation
         amps = [x["i_inj"] for x in self.observation]
