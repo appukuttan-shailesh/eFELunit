@@ -100,7 +100,7 @@ class Ferg2014_APFrequencyTest(Test):
         observation = self.format_data(observation)
         Test.__init__(self,observation, name)
 
-        self.required_capabilities += (cap.SomaInjectsCurrentProducesMembranePotential,)
+        self.required_capabilities += (cap.SomaReceivesCurrentProducesMembranePotential,)
 
         self.parallelize = parallelize
         self.force_run = force_run

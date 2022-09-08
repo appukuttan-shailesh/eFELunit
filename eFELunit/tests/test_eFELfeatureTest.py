@@ -144,7 +144,7 @@ class eFELfeatureTest(Test):
             base_directory = os.path.join(".", "Results", "eFELfeatureTest", self.name.replace(" ", "_"))
         self.base_directory = base_directory # updated with model name in generate_prediction()     
 
-        self.required_capabilities += (cap.SomaInjectsCurrentProducesMembranePotential,)
+        self.required_capabilities += (cap.SomaReceivesCurrentProducesMembranePotential,)
 
         self.parallelize = parallelize
         self.force_run = force_run

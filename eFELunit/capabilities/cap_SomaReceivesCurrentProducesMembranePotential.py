@@ -1,6 +1,6 @@
 import sciunit
 
-class SomaInjectsCurrentProducesMembranePotential(sciunit.Capability):
+class SomaReceivesCurrentProducesMembranePotential(sciunit.Capability):
     """Enables recording membrane potential from soma """
 
     def get_soma_vm(self, tstop):
