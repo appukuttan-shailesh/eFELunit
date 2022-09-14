@@ -290,7 +290,7 @@ class eFELfeatureTest(Test):
             #plt.tick_params(labelsize=18)
             fig_name = "response_stim_" + str(entry[0]['stim_amp'][0]).replace(" ", "") + '.pdf'
             plt.savefig(os.path.join(self.base_directory, fig_name), dpi=600, bbox_inches='tight')
-            self.figures.append(self.base_directory + fig_name)
+            self.figures.append(os.path.join(self.base_directory, fig_name))
             plt.close('all') 
 
         return prediction
@@ -364,8 +364,8 @@ class eFELfeatureTest(Test):
 
     def bind_score(self, score, model, observation, prediction):
 
-        self.figures.append(self.base_directory + 'compare_obs_pred.json')
-        self.figures.append(self.base_directory + 'test_summary.json')
+        self.figures.append(os.path.join(self.base_directory, 'compare_obs_pred.json'))
+        self.figures.append(os.path.join(self.base_directory, 'test_summary.json'))
         self.figures.append(self.logFile)
         score.related_data["figures"] = self.figures
         return score
